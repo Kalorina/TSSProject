@@ -311,7 +311,6 @@ void CTSScviko1Dlg::OnFileOpen32771()
 				image.filename = filename;
 				image.filepath = filepath; 
 				image.bitmap = Gdiplus::Image::FromFile(filepath);
-				CalculateHistogram(image);
 				m_imageList.push_back(image);
 				
 				DisplayListControl();
@@ -470,6 +469,13 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 		return S_OK;
 
 	Img& currentImg = m_imageList[selectedIndex];
+
+	CalculateHistogram(currentImg);
+
+	// Tu sa ma Calculovat histogram!! 
+
+	// tuto std thread 
+	// premenne pre start_thread a finish_thread pre calculaciu histogramu
 
 	Gdiplus::Pen redPen(Gdiplus::Color(255, 255, 0, 0), 2);   
 	Gdiplus::Pen greenPen(Gdiplus::Color(255, 0, 255, 0), 2); 

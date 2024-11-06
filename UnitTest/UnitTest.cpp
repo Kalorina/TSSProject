@@ -17,11 +17,15 @@ namespace UnitTest
 	{
 	public:
 
+		// kombinatoricke unit test
+		// velke bitmapy/ obrazky -> viac ako 2x2 pixels
+
 		TEST_METHOD(TestMethod_SingleRedPixel)
 		{
 			// 1x1 image with a single red pixel
 			int width = 1, height = 1;
-			std::vector<BYTE> pixelData = { 0, 0, 255, 255 }; // Pixel: Red (B=0, G=0, R=255, A=255)
+			std::vector<BYTE> pixelData = { 0, 0, 255, 255 }; // Pixel: Red (B=0, G=0, R=255, A=255) 
+			// tuto 256x256x256 pixels obr -> kombinatorika farieb napr. csv subory v matlabe (?)
 
 			std::vector<int> redChannel, greenChannel, blueChannel;
 
@@ -63,7 +67,6 @@ namespace UnitTest
 
 			std::vector<int> redChannel, greenChannel, blueChannel;
 
-			// Calculate histogram
 			CalculateHistogramFromPixelData(pixelData, width, height, redChannel, greenChannel, blueChannel);
 
 
