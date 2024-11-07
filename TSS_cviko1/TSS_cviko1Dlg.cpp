@@ -8,6 +8,7 @@
 #include "TSS_cviko1Dlg.h"
 #include "afxdialogex.h"
 #include <stdio.h>
+#include <thread>
 #include <gdiplus.h> 
 using namespace Gdiplus;
 #include "HistogramCalculation.h"
@@ -460,8 +461,8 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 	auto gr = Gdiplus::Graphics::FromHDC(st->hDC); 
 
-	if (m_imageList.empty())
-		return -1;
+	if (m_imageList.empty() || !m_RedChecked && !m_BlueChecked && !m_GreenChecked)
+		return S_OK;
 
 	int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 
@@ -470,13 +471,31 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 	Img& currentImg = m_imageList[selectedIndex];
 
-	CalculateHistogram(currentImg);
-
-	// Tu sa ma Calculovat histogram!! 
-
+	//CalculateHistogram(currentImg);
 	// tuto std thread 
 	// premenne pre start_thread a finish_thread pre calculaciu histogramu
 
+	if (currentImg.isHistCalculating)
+	{
+		return S_OK; 
+	}
+	
+	if (!currentImg.isHistCalculated) 
+	{
+		std::thread([this, &currentImg]() {
+
+			CalculateHistogram(currentImg);
+
+			currentImg.isHistCalculated = true;
+			currentImg.isHistCalculating = false;
+
+			// Optionally, trigger a UI update here, e.g., InvalidateRect
+			// PostMessage(WM_PAINT, 0, 0);  // Example if you need to refresh UI
+			//PostMessage(WM_DRAW_HISTOGRAM, 0, 0);
+
+			}).detach();
+	}
+	
 	Gdiplus::Pen redPen(Gdiplus::Color(255, 255, 0, 0), 2);   
 	Gdiplus::Pen greenPen(Gdiplus::Color(255, 0, 255, 0), 2); 
 	Gdiplus::Pen bluePen(Gdiplus::Color(255, 0, 0, 255), 2);  
@@ -621,4 +640,21 @@ void CTSScviko1Dlg::OnExitappExit()
 
 
 	CDialogEx::OnOK();  // or CDialogEx::OnCancel();
+}
+
+LRESULT CTSScviko1Dlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	//if (message == WM_DRAW_HISTOGRAM) {
+	//	// Cast the wParam to LPDRAWITEMSTRUCT, if necessary
+	//	LPDRAWITEMSTRUCT lpDrawItemStruct = (LPDRAWITEMSTRUCT)wParam;
+
+	//	// Perform the necessary drawing operations or update UI
+	//	// For example, invalidate the window or control to trigger a redraw
+	//	Invalidate();  // Redraw the entire window or specify a control to redraw
+
+	//	return 0;  // Return 0 to indicate the message was processed
+	//}
+
+	// Call the default WindowProc for other messages
+	return CDialogEx::WindowProc(message, wParam, lParam);
 }

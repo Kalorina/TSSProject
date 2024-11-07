@@ -18,6 +18,9 @@ struct Img
 	std::vector<int> redChannel;
 	std::vector<int> greenChannel;
 	std::vector<int> blueChannel;
+
+	bool isHistCalculated = false;
+	bool isHistCalculating = false;
 };
 
 // enum -> enumarate
@@ -110,6 +113,7 @@ public:
 	afx_msg void OnHistogramBlue();
 	afx_msg void OnUpdateHistogramRed(CCmdUI* pCmdUI);
 	afx_msg void OnExitappExit();
+	LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 };
 
 void CalculateHistogram(Img& img);
