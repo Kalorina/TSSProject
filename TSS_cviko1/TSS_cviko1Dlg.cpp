@@ -9,6 +9,7 @@
 #include "afxdialogex.h"
 #include <stdio.h>
 #include <thread>
+#include <chrono> // for sleep fucntions
 #include <gdiplus.h> 
 using namespace Gdiplus;
 #include "HistogramCalculation.h"
@@ -90,6 +91,7 @@ BEGIN_MESSAGE_MAP(CTSScviko1Dlg, CDialogEx)
 	//Messages
 	ON_MESSAGE(WM_DRAW_IMAGE, OnDrawImage)
 	ON_MESSAGE(WM_DRAW_HISTOGRAM, OnDrawHist)
+	ON_MESSAGE(WM_HISTOGRAMCALCUCALTION_DONE, &CTSScviko1Dlg::HistogramCalculationDone)
 
 	ON_WM_SIZE()
 	ON_WM_DRAWITEM()
@@ -217,13 +219,76 @@ void CTSScviko1Dlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 
-	//when a selection in ListControl is selected it calles OnDrawImage
+	/*// when a selection in ListControl is selected it calles OnDrawImage
+	// Here Calculate Histrogram in threads
 
-	m_staticImage.Invalidate(FALSE); //updates image 
-	m_staticHistogram.Invalidate(FALSE); //updates histogram channels
+	//int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	//if (selectedIndex != -1 && selectedIndex < m_imageList.size())
+	//{
+	//	if (m_RedChecked || m_GreenChecked || m_BlueChecked)
+	//	{
+	//		if (!m_imageList[selectedIndex].isHistCalculated && !m_imageList[selectedIndex].isHistCalculating)
+	//		{
+	//			m_imageList[selectedIndex].isHistCalculating = true;
+
+	//			std::thread thread_histogram([this, selectedIndex]() {
+
+	//				CalculateHistogram(m_imageList[selectedIndex]);
+
+	//				std::this_thread::sleep_for(std::chrono::seconds(2));
+
+	//				PostMessage(WM_HISTOGRAMCALCUCALTION_DONE, selectedIndex, 0);
+	//				});
+
+	//			thread_histogram.detach();
+
+	//			m_staticHistogram.Invalidate(TRUE);
+	//		}
+	//	}
+	//}
+
+	//// Clear=TRUE display=FALSE while calculation is in progress
+	//m_staticImage.Invalidate(FALSE); 
+	//m_staticHistogram.Invalidate(FALSE); 
+
+	//InvalidateRect(nullptr, TRUE);
+	*/
+
+	StartHistogramCalculationForSelectedImage();
 
 	*pResult = 0;
 }
+
+void CTSScviko1Dlg::StartHistogramCalculationForSelectedImage()
+{
+	int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	if (selectedIndex != -1 && selectedIndex < m_imageList.size())
+	{
+		if ((m_RedChecked || m_GreenChecked || m_BlueChecked) &&
+			!m_imageList[selectedIndex].isHistCalculating &&
+			!m_imageList[selectedIndex].isHistCalculated)
+		{
+			m_imageList[selectedIndex].isHistCalculating = true;
+
+			std::thread thread_histogram([this, selectedIndex]() {
+
+				std::this_thread::sleep_for(std::chrono::seconds(2)); 
+				// Simulate delay
+				CalculateHistogram(m_imageList[selectedIndex]);
+				PostMessage(WM_HISTOGRAMCALCUCALTION_DONE, selectedIndex, 0);
+				});
+
+			thread_histogram.detach();
+
+			m_staticHistogram.Invalidate(TRUE);
+		}
+	}
+	m_staticImage.Invalidate(FALSE);
+    m_staticHistogram.Invalidate(FALSE);
+}
+
 
 void CalculateHistogram(Img& img)
 {
@@ -323,7 +388,6 @@ void CTSScviko1Dlg::OnFileOpen32771()
 		return;
 }
 
-
 void CTSScviko1Dlg::OnFileClose32772()
 {
 	POSITION pos = m_fileList.GetFirstSelectedItemPosition();
@@ -366,7 +430,6 @@ void CTSScviko1Dlg::OnFileClose32772()
 	}
 }
 
-
 void CTSScviko1Dlg::OnSize(UINT nType, int cx, int cy)
 {
 	/*CDialogEx::OnSize(nType, cx, cy);
@@ -406,6 +469,17 @@ void CTSScviko1Dlg::OnSize(UINT nType, int cx, int cy)
 
 }
 
+void CTSScviko1Dlg::DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vector<int>& channel, Gdiplus::Pen& pen, float xScale, int maxHeight, int height) {
+
+	Gdiplus::PointF* Points = new Gdiplus::PointF[channel.size()];
+	for (int i = 0; i < channel.size(); i++) {
+		float scaledX = i * xScale;  // Scale X-coordinate
+		float barHeight = static_cast<float>(channel[i]) / maxHeight * height;
+		Points[i] = Gdiplus::PointF(scaledX, height - barHeight); // Invert Y-axis
+	}
+	gr->DrawCurve(&pen, Points, channel.size());
+	delete[] Points;
+}
 
 LRESULT CTSScviko1Dlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 {
@@ -454,15 +528,20 @@ LRESULT CTSScviko1Dlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 	return S_OK;
 }
 
-
 LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 {
 	LPDRAWITEMSTRUCT st = (LPDRAWITEMSTRUCT)wParam;
 
 	auto gr = Gdiplus::Graphics::FromHDC(st->hDC); 
 
-	if (m_imageList.empty() || !m_RedChecked && !m_BlueChecked && !m_GreenChecked)
+	if (m_imageList.empty())
 		return S_OK;
+
+	// If no channels are checked, clear the histogram display and return
+	if (!m_RedChecked && !m_GreenChecked && !m_BlueChecked) {
+		gr->Clear(Gdiplus::Color(255, 255, 255)); 
+		return S_OK;
+	}
 
 	int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 
@@ -471,35 +550,12 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 	Img& currentImg = m_imageList[selectedIndex];
 
-	//CalculateHistogram(currentImg);
-	// tuto std thread 
-	// premenne pre start_thread a finish_thread pre calculaciu histogramu
+	if (currentImg.isHistCalculating || !currentImg.isHistCalculated)
+		return S_OK;
 
-	if (currentImg.isHistCalculating)
-	{
-		return S_OK; 
-	}
-	
-	if (!currentImg.isHistCalculated) 
-	{
-		std::thread([this, &currentImg]() {
-
-			CalculateHistogram(currentImg);
-
-			currentImg.isHistCalculated = true;
-			currentImg.isHistCalculating = false;
-
-			// Optionally, trigger a UI update here, e.g., InvalidateRect
-			// PostMessage(WM_PAINT, 0, 0);  // Example if you need to refresh UI
-			//PostMessage(WM_DRAW_HISTOGRAM, 0, 0);
-
-			}).detach();
-	}
-	
 	Gdiplus::Pen redPen(Gdiplus::Color(255, 255, 0, 0), 2);   
 	Gdiplus::Pen greenPen(Gdiplus::Color(255, 0, 255, 0), 2); 
 	Gdiplus::Pen bluePen(Gdiplus::Color(255, 0, 0, 255), 2);  
-
 	
 	int maxHeight = 0;
 	gr->Clear(Gdiplus::Color(255, 255, 255));
@@ -537,41 +593,39 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 		}
 	}
 
-	// (Re)Draw histograms
-	if (m_RedChecked) {
-		Gdiplus::PointF* redPoints = new Gdiplus::PointF[currentImg.redChannel.size()];
-		for (int i = 0; i < currentImg.redChannel.size(); i++) {
-			float scaledX = i * xScale;  // Scale X-coordinate
-			float barHeight = static_cast<float>(currentImg.redChannel[i]) / maxHeight * height;
-			redPoints[i] = Gdiplus::PointF(scaledX, height - barHeight); // Invert Y-axis
-		}
-		gr->DrawCurve(&redPen, redPoints, currentImg.redChannel.size());
-		delete[] redPoints; 
-	}
-
-	if (m_GreenChecked) {
-		Gdiplus::PointF* greenPoints = new Gdiplus::PointF[currentImg.greenChannel.size()];
-		for (int i = 0; i < currentImg.greenChannel.size(); i++) {
-			float scaledX = i * xScale;  // Scale X-coordinate
-			float barHeight = static_cast<float>(currentImg.greenChannel[i]) / maxHeight * height;
-			greenPoints[i] = Gdiplus::PointF(scaledX, height - barHeight); // Invert Y-axis
-		}
-		gr->DrawCurve(&greenPen, greenPoints, currentImg.greenChannel.size());
-		delete[] greenPoints; 
-	}
-
-	if (m_BlueChecked) {
-		Gdiplus::PointF* bluePoints = new Gdiplus::PointF[currentImg.blueChannel.size()];
-		for (int i = 0; i < currentImg.blueChannel.size(); i++) {
-			float scaledX = i * xScale;  // Scale X-coordinate
-			float barHeight = static_cast<float>(currentImg.blueChannel[i]) / maxHeight * height;
-			bluePoints[i] = Gdiplus::PointF(scaledX, height - barHeight); // Invert Y-axis
-		}
-		gr->DrawCurve(&bluePen, bluePoints, currentImg.blueChannel.size());
-		delete[] bluePoints; 
-	}
+	if (m_RedChecked) 
+		DrawHistogramChannel(gr, currentImg.redChannel, redPen, xScale, maxHeight, height);
+	
+	if (m_GreenChecked) 
+		DrawHistogramChannel(gr, currentImg.greenChannel, greenPen, xScale, maxHeight, height);
+	
+	if (m_BlueChecked) 
+		DrawHistogramChannel(gr, currentImg.blueChannel, bluePen, xScale, maxHeight, height);
 
 	return S_OK;
+}
+
+LRESULT CTSScviko1Dlg::HistogramCalculationDone(WPARAM wParam, LPARAM lParam)
+{
+	int indexDone = static_cast<int>(wParam);
+
+	m_imageList[indexDone].isHistCalculated = true;
+	m_imageList[indexDone].isHistCalculating = false;
+
+	//int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	m_staticImage.Invalidate(FALSE); //display image 
+	m_staticHistogram.Invalidate(FALSE); //display histogram channels
+	//InvalidateRect(nullptr, TRUE);
+
+	//if (selectedIndex == indexDone)
+	//{
+	//	m_staticImage.Invalidate(FALSE); //updates image 
+	//	m_staticHistogram.Invalidate(FALSE); //updates histogram channels
+	//	//InvalidateRect(NULL, TRUE);
+	//}
+
+	return LRESULT();
 }
 
 void CTSScviko1Dlg::OnStnClickedStaticImage()
@@ -579,10 +633,11 @@ void CTSScviko1Dlg::OnStnClickedStaticImage()
 	// TODO: Add your control notification handler code here
 }
 
-
 void CTSScviko1Dlg::OnHistogramRed()
 {
 	m_RedChecked = !m_RedChecked;
+	StartHistogramCalculationForSelectedImage();
+
 	if (m_RedChecked) 
 	{
 		m_menu->CheckMenuItem(ID_HISTOGRAM_RED, MF_CHECKED | MF_BYCOMMAND);
@@ -596,7 +651,8 @@ void CTSScviko1Dlg::OnHistogramRed()
 
 void CTSScviko1Dlg::OnHistogramGreen()
 {
-	m_GreenChecked = !m_GreenChecked; 
+	m_GreenChecked = !m_GreenChecked;
+	StartHistogramCalculationForSelectedImage();
 	if (m_GreenChecked) 
 	{
 		m_menu->CheckMenuItem(ID_HISTOGRAM_GREEN, MF_CHECKED | MF_BYCOMMAND);
@@ -611,6 +667,7 @@ void CTSScviko1Dlg::OnHistogramGreen()
 void CTSScviko1Dlg::OnHistogramBlue()
 {
 	m_BlueChecked = !m_BlueChecked;
+	StartHistogramCalculationForSelectedImage();
 	if (m_BlueChecked) 
 	{
 		m_menu->CheckMenuItem(ID_HISTOGRAM_BLUE, MF_CHECKED | MF_BYCOMMAND);
@@ -621,7 +678,6 @@ void CTSScviko1Dlg::OnHistogramBlue()
 	}
 	m_staticHistogram.Invalidate(FALSE);
 }
-
 
 void CTSScviko1Dlg::OnUpdateHistogramRed(CCmdUI* pCmdUI)
 {
@@ -640,21 +696,4 @@ void CTSScviko1Dlg::OnExitappExit()
 
 
 	CDialogEx::OnOK();  // or CDialogEx::OnCancel();
-}
-
-LRESULT CTSScviko1Dlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
-{
-	//if (message == WM_DRAW_HISTOGRAM) {
-	//	// Cast the wParam to LPDRAWITEMSTRUCT, if necessary
-	//	LPDRAWITEMSTRUCT lpDrawItemStruct = (LPDRAWITEMSTRUCT)wParam;
-
-	//	// Perform the necessary drawing operations or update UI
-	//	// For example, invalidate the window or control to trigger a redraw
-	//	Invalidate();  // Redraw the entire window or specify a control to redraw
-
-	//	return 0;  // Return 0 to indicate the message was processed
-	//}
-
-	// Call the default WindowProc for other messages
-	return CDialogEx::WindowProc(message, wParam, lParam);
 }

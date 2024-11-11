@@ -27,7 +27,8 @@ struct Img
 enum
 {
 	WM_DRAW_IMAGE = WM_USER + 1,
-	WM_DRAW_HISTOGRAM //s deklaraciou -> WM_DRAW_HISTOGRAM = WM_USER + 2;
+	WM_DRAW_HISTOGRAM, //s deklaraciou -> WM_DRAW_HISTOGRAM = WM_USER + 2;
+	WM_HISTOGRAMCALCUCALTION_DONE
 };
 
 class CStaticImage : public CStatic
@@ -75,6 +76,8 @@ protected:
 public:
 	afx_msg void OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult);
 
+	void StartHistogramCalculationForSelectedImage();
+
 	CRect m_rect;
 	CMenu* m_menu;
 
@@ -103,17 +106,19 @@ public:
 	afx_msg void OnFileOpen32771();
 	afx_msg void OnFileClose32772();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
+
+	void DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vector<int>& channel, Gdiplus::Pen& pen, float xScale, int maxHeight, int height);
 	
 	//Messages
 	afx_msg LRESULT OnDrawImage(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDrawHist(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT HistogramCalculationDone(WPARAM wParam, LPARAM lParam);
 	afx_msg void OnStnClickedStaticImage();
 	afx_msg void OnHistogramRed();
 	afx_msg void OnHistogramGreen();
 	afx_msg void OnHistogramBlue();
 	afx_msg void OnUpdateHistogramRed(CCmdUI* pCmdUI);
 	afx_msg void OnExitappExit();
-	LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 };
 
 void CalculateHistogram(Img& img);
