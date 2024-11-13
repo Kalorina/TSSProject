@@ -91,7 +91,7 @@ BEGIN_MESSAGE_MAP(CTSScviko1Dlg, CDialogEx)
 	//Messages
 	ON_MESSAGE(WM_DRAW_IMAGE, OnDrawImage)
 	ON_MESSAGE(WM_DRAW_HISTOGRAM, OnDrawHist)
-	ON_MESSAGE(WM_HISTOGRAMCALCUCALTION_DONE, &CTSScviko1Dlg::HistogramCalculationDone)
+	ON_MESSAGE(WM_HISTOGRAMCALCUCALTION_DONE, HistogramCalculationDone)
 
 	ON_WM_SIZE()
 	ON_WM_DRAWITEM()
@@ -219,43 +219,13 @@ void CTSScviko1Dlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 
-	/*// when a selection in ListControl is selected it calles OnDrawImage
-	// Here Calculate Histrogram in threads
+	if (m_RedChecked || m_GreenChecked || m_BlueChecked)
+	{
+		StartHistogramCalculationForSelectedImage();
+	}
 
-	//int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-
-	//if (selectedIndex != -1 && selectedIndex < m_imageList.size())
-	//{
-	//	if (m_RedChecked || m_GreenChecked || m_BlueChecked)
-	//	{
-	//		if (!m_imageList[selectedIndex].isHistCalculated && !m_imageList[selectedIndex].isHistCalculating)
-	//		{
-	//			m_imageList[selectedIndex].isHistCalculating = true;
-
-	//			std::thread thread_histogram([this, selectedIndex]() {
-
-	//				CalculateHistogram(m_imageList[selectedIndex]);
-
-	//				std::this_thread::sleep_for(std::chrono::seconds(2));
-
-	//				PostMessage(WM_HISTOGRAMCALCUCALTION_DONE, selectedIndex, 0);
-	//				});
-
-	//			thread_histogram.detach();
-
-	//			m_staticHistogram.Invalidate(TRUE);
-	//		}
-	//	}
-	//}
-
-	//// Clear=TRUE display=FALSE while calculation is in progress
-	//m_staticImage.Invalidate(FALSE); 
-	//m_staticHistogram.Invalidate(FALSE); 
-
-	//InvalidateRect(nullptr, TRUE);
-	*/
-
-	StartHistogramCalculationForSelectedImage();
+	m_staticImage.Invalidate(FALSE); 
+	m_staticHistogram.Invalidate(FALSE); 
 
 	*pResult = 0;
 }
@@ -274,24 +244,22 @@ void CTSScviko1Dlg::StartHistogramCalculationForSelectedImage()
 
 			std::thread thread_histogram([this, selectedIndex]() {
 
-				std::this_thread::sleep_for(std::chrono::seconds(2)); 
-				// Simulate delay
+				auto selected = m_imageList[selectedIndex];
 				CalculateHistogram(m_imageList[selectedIndex]);
-				PostMessage(WM_HISTOGRAMCALCUCALTION_DONE, selectedIndex, 0);
+				selected.isHistCalculated = true;
+				PostMessage(WM_HISTOGRAMCALCUCALTION_DONE);
 				});
 
 			thread_histogram.detach();
-
-			m_staticHistogram.Invalidate(TRUE);
 		}
 	}
-	m_staticImage.Invalidate(FALSE);
-    m_staticHistogram.Invalidate(FALSE);
 }
-
 
 void CalculateHistogram(Img& img)
 {
+	std::this_thread::sleep_for(std::chrono::seconds(10));
+	// Simulate delay
+
 	if (!img.bitmap) return;
 
 	Gdiplus::Bitmap* bitmap = static_cast<Gdiplus::Bitmap*>(img.bitmap);
@@ -550,9 +518,6 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 	Img& currentImg = m_imageList[selectedIndex];
 
-	if (currentImg.isHistCalculating || !currentImg.isHistCalculated)
-		return S_OK;
-
 	Gdiplus::Pen redPen(Gdiplus::Color(255, 255, 0, 0), 2);   
 	Gdiplus::Pen greenPen(Gdiplus::Color(255, 0, 255, 0), 2); 
 	Gdiplus::Pen bluePen(Gdiplus::Color(255, 0, 0, 255), 2);  
@@ -607,25 +572,10 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 LRESULT CTSScviko1Dlg::HistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 {
-	int indexDone = static_cast<int>(wParam);
-
-	m_imageList[indexDone].isHistCalculated = true;
-	m_imageList[indexDone].isHistCalculating = false;
-
-	//int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-
-	m_staticImage.Invalidate(FALSE); //display image 
+	//m_staticImage.Invalidate(FALSE); //display image 
 	m_staticHistogram.Invalidate(FALSE); //display histogram channels
-	//InvalidateRect(nullptr, TRUE);
-
-	//if (selectedIndex == indexDone)
-	//{
-	//	m_staticImage.Invalidate(FALSE); //updates image 
-	//	m_staticHistogram.Invalidate(FALSE); //updates histogram channels
-	//	//InvalidateRect(NULL, TRUE);
-	//}
-
-	return LRESULT();
+	
+	return S_OK;
 }
 
 void CTSScviko1Dlg::OnStnClickedStaticImage()
