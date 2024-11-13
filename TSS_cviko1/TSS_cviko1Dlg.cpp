@@ -257,7 +257,7 @@ void CTSScviko1Dlg::StartHistogramCalculationForSelectedImage()
 
 void CalculateHistogram(Img& img)
 {
-	std::this_thread::sleep_for(std::chrono::seconds(10));
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 	// Simulate delay
 
 	if (!img.bitmap) return;
@@ -572,7 +572,7 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 LRESULT CTSScviko1Dlg::HistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 {
-	//m_staticImage.Invalidate(FALSE); //display image 
+	m_staticImage.Invalidate(FALSE); //display image 
 	m_staticHistogram.Invalidate(FALSE); //display histogram channels
 	
 	return S_OK;
