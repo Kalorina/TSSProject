@@ -95,13 +95,19 @@ public:
 	bool m_GreenChecked = FALSE;
 	bool m_BlueChecked = FALSE;
 
+	bool m_DirectionUp = FALSE;
+	bool m_DirectionDown = FALSE;
+	bool m_DirectionLeft = FALSE;
+	bool m_DirectionRight = FALSE;
+	bool m_Brighter = FALSE;
+	bool m_Darker = FALSE;
+
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 	ULONG_PTR gdiplusToken;
 
 
 	//helpers
 	void DisplayListControl();
-
 
 	afx_msg void OnFileOpen32771();
 	afx_msg void OnFileClose32772();
@@ -117,8 +123,13 @@ public:
 	afx_msg void OnHistogramRed();
 	afx_msg void OnHistogramGreen();
 	afx_msg void OnHistogramBlue();
-	afx_msg void OnUpdateHistogramRed(CCmdUI* pCmdUI);
 	afx_msg void OnExitappExit();
+	afx_msg void OnDirectionUp();
+	afx_msg void OnDirectionDown();
+	afx_msg void OnDirectionLeft();
+	afx_msg void OnDirectionRight();
+	afx_msg void OnImageBrighter();
+	afx_msg void OnImageDarker();
 };
 
 void CalculateHistogram(Img& img);

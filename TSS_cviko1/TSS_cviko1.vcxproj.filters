@@ -36,6 +36,9 @@
     <ClInclude Include="HistogramCalculation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ImageBrightness.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TSS_cviko1.cpp">

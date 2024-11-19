@@ -22,13 +22,27 @@
 #define ID_HISTOGRAM_B                  32778
 #define Exit                            32779
 #define ID_EXITAPP_EXIT                 32780
+#define ID_Menu                         32781
+#define ID_DIRECTION_UP                 32782
+#define ID_DIRECTION_DONE               32783
+#define ID_DIRECTION_RIGHT              32784
+#define ID_DIRECTION_LEFT               32785
+#define ID_IMAGE_BRIGHER                32786
+#define ID_IMAGE_DARKER                 32787
+#define ID_IMAGE_DIRECTION              32788
+#define ID_DIRECTION_UP32789            32789
+#define ID_DIRECTION_DOWN               32790
+#define ID_DIRECTION_LEFR               32791
+#define ID_DIRECTION_RIGHT32792         32792
+#define ID_IMAGE_BRIGHTER               32793
+#define ID_IMAGE_DARKER10               32794
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32781
+#define _APS_NEXT_COMMAND_VALUE         32795
 #define _APS_NEXT_CONTROL_VALUE         1004
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

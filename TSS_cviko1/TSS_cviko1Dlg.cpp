@@ -97,14 +97,18 @@ BEGIN_MESSAGE_MAP(CTSScviko1Dlg, CDialogEx)
 	ON_WM_DRAWITEM()
 
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_FILE_LIST, &CTSScviko1Dlg::OnLvnItemchangedFileList) // Linking the LVN_ITEMCHANGED event
-	//ON_BN_CLICKED(IDC_BUTTON_LOAD_IMAGE, &CTSScviko1Dlg::OnBnClickedLoadImage) // Linking a button click event
 
 	ON_STN_CLICKED(IDC_STATIC_IMAGE, &CTSScviko1Dlg::OnStnClickedStaticImage)
 	ON_COMMAND(ID_HISTOGRAM_RED, &CTSScviko1Dlg::OnHistogramRed)
 	ON_COMMAND(ID_HISTOGRAM_GREEN, &CTSScviko1Dlg::OnHistogramGreen)
 	ON_COMMAND(ID_HISTOGRAM_BLUE, &CTSScviko1Dlg::OnHistogramBlue)
-	ON_UPDATE_COMMAND_UI(ID_HISTOGRAM_RED, &CTSScviko1Dlg::OnUpdateHistogramRed)
 	ON_COMMAND(ID_EXITAPP_EXIT, &CTSScviko1Dlg::OnExitappExit)
+	ON_COMMAND(ID_DIRECTION_UP, &CTSScviko1Dlg::OnDirectionUp)
+	ON_COMMAND(ID_DIRECTION_DOWN, &CTSScviko1Dlg::OnDirectionDown)
+	ON_COMMAND(ID_DIRECTION_LEFT, &CTSScviko1Dlg::OnDirectionLeft)
+	ON_COMMAND(ID_DIRECTION_RIGHT, &CTSScviko1Dlg::OnDirectionRight)
+	ON_COMMAND(ID_IMAGE_BRIGHTER, &CTSScviko1Dlg::OnImageBrighter)
+	ON_COMMAND(ID_IMAGE_DARKER, &CTSScviko1Dlg::OnImageDarker)
 END_MESSAGE_MAP()
 
 
@@ -629,11 +633,6 @@ void CTSScviko1Dlg::OnHistogramBlue()
 	m_staticHistogram.Invalidate(FALSE);
 }
 
-void CTSScviko1Dlg::OnUpdateHistogramRed(CCmdUI* pCmdUI)
-{
-	// TODO: Add your command update UI handler code here
-}
-
 void CTSScviko1Dlg::OnExitappExit()
 {
 	if (AfxMessageBox(_T("Are you sure you want to exit?"), MB_YESNO | MB_ICONQUESTION) == IDNO)
@@ -646,4 +645,109 @@ void CTSScviko1Dlg::OnExitappExit()
 
 
 	CDialogEx::OnOK();  // or CDialogEx::OnCancel();
+}
+
+void CTSScviko1Dlg::OnDirectionUp()
+{
+	m_DirectionUp = !m_DirectionUp;
+
+	if (m_DirectionUp)
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_UP, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_UP, MF_UNCHECKED | MF_BYCOMMAND);
+	}
+}
+
+void CTSScviko1Dlg::OnDirectionDown()
+{
+	m_DirectionDown = !m_DirectionDown;
+
+	if (m_DirectionDown)
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_DOWN, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_DOWN, MF_UNCHECKED | MF_BYCOMMAND);
+	}
+}
+
+void CTSScviko1Dlg::OnDirectionLeft()
+{
+	m_DirectionLeft = !m_DirectionLeft;
+
+	if (m_DirectionLeft)
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_LEFT, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_LEFT, MF_UNCHECKED | MF_BYCOMMAND);
+	}
+}
+
+void CTSScviko1Dlg::OnDirectionRight()
+{
+	m_DirectionRight = !m_DirectionRight;
+
+	if (m_DirectionRight)
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, MF_UNCHECKED | MF_BYCOMMAND);
+	}
+}
+
+void CTSScviko1Dlg::OnImageBrighter()
+{
+	m_Brighter = !m_Brighter;
+	if(m_Brighter) 
+		m_Darker = FALSE;
+
+	if (m_Brighter)
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_UNCHECKED | MF_BYCOMMAND);
+	}
+
+	if (m_Darker)
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_UNCHECKED | MF_BYCOMMAND);
+	}
+}
+
+void CTSScviko1Dlg::OnImageDarker()
+{
+	m_Darker = !m_Darker;
+	if (m_Darker)
+		m_Brighter = FALSE;
+
+	if (m_Darker)
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_UNCHECKED | MF_BYCOMMAND);
+	}
+	if (m_Brighter)
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_CHECKED | MF_BYCOMMAND);
+	}
+	else
+	{
+		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_UNCHECKED | MF_BYCOMMAND);
+	}
 }
