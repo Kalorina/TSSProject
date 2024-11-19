@@ -13,6 +13,7 @@
 #include <gdiplus.h> 
 using namespace Gdiplus;
 #include "HistogramCalculation.h"
+#include "ImageBrightness.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -92,6 +93,7 @@ BEGIN_MESSAGE_MAP(CTSScviko1Dlg, CDialogEx)
 	ON_MESSAGE(WM_DRAW_IMAGE, OnDrawImage)
 	ON_MESSAGE(WM_DRAW_HISTOGRAM, OnDrawHist)
 	ON_MESSAGE(WM_HISTOGRAMCALCUCALTION_DONE, HistogramCalculationDone)
+	ON_MESSAGE(WM_ADJUSTIMAGEBRITHNESS, AdjustImageBrightnessDone)
 
 	ON_WM_SIZE()
 	ON_WM_DRAWITEM()
@@ -227,11 +229,33 @@ void CTSScviko1Dlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	{
 		StartHistogramCalculationForSelectedImage();
 	}
+	
+	if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
+		StartAdjustingImageBrightness();
+	}
+	else {
+		ReturntoOriginalBitmap();
+	}
 
 	m_staticImage.Invalidate(FALSE); 
 	m_staticHistogram.Invalidate(FALSE); 
 
 	*pResult = 0;
+}
+
+void CTSScviko1Dlg::StartAdjustingImageBrightness()
+{
+	int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	if (selectedIndex != -1 && selectedIndex < m_imageList.size())
+	{
+		Img& currentImg = m_imageList[selectedIndex];
+		if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
+			float factor = m_Brighter ? 1.5f : 0.5f; // Adjust factor as needed by +/-10%
+			AdjustImageBrightness(currentImg, factor, m_DirectionUp, m_DirectionDown, m_DirectionLeft, m_DirectionRight);
+			PostMessage(WM_ADJUSTIMAGEBRITHNESS);
+		}
+	}
 }
 
 void CTSScviko1Dlg::StartHistogramCalculationForSelectedImage()
@@ -278,7 +302,6 @@ void CalculateHistogram(Img& img)
 	// 32bppARGB format -> each pixel has 4 bytes (ARGB)
 	if (bitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Ok)
 	{
-
 		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
 		std::vector<BYTE> pixelData(pixels, pixels + height * bitmapData.Stride);
 
@@ -286,6 +309,29 @@ void CalculateHistogram(Img& img)
 
 		// Unlock the bitmap after processing
 		bitmap->UnlockBits(&bitmapData);
+	}
+}
+
+void CTSScviko1Dlg::ReturntoOriginalBitmap()
+{
+	int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	if (selectedIndex != -1 && selectedIndex < m_imageList.size())
+	{
+		Img& currentImg = m_imageList[selectedIndex];
+
+		// Clean up the current bitmap if it exists and is different from the original
+		if (currentImg.bitmap && currentImg.bitmap != currentImg.bitmap_Original)
+		{
+			delete currentImg.bitmap;
+			currentImg.bitmap = nullptr;
+		}
+
+		// Create a new copy of the original bitmap
+		if (currentImg.bitmap_Original)
+		{
+			currentImg.bitmap = currentImg.bitmap_Original->Clone();
+		}
 	}
 }
 
@@ -349,6 +395,7 @@ void CTSScviko1Dlg::OnFileOpen32771()
 				image.filename = filename;
 				image.filepath = filepath; 
 				image.bitmap = Gdiplus::Image::FromFile(filepath);
+				image.bitmap_Original = Gdiplus::Image::FromFile(filepath);
 				m_imageList.push_back(image);
 				
 				DisplayListControl();
@@ -453,48 +500,79 @@ void CTSScviko1Dlg::DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vecto
 	delete[] Points;
 }
 
+void AdjustImageBrightness(Img& img, float factor, bool DirectionUp, bool DirectionDown, bool DirectionLeft, bool DirectionRight) {
+	
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	// Simulate delay
+
+	if (!img.bitmap) return;
+
+	Gdiplus::Bitmap* bitmap = static_cast<Gdiplus::Bitmap*>(img.bitmap);
+
+	int width = bitmap->GetWidth();
+	int height = bitmap->GetHeight();
+
+	// Lock the bitmap for direct memory access
+	Gdiplus::Rect rect(0, 0, width, height);
+	BitmapData bitmapData;
+
+	// 32bppARGB format -> each pixel has 4 bytes (ARGB)
+	if (bitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Ok)
+	{
+		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
+		//std::vector<BYTE> pixelData(pixels, pixels + height * bitmapData.Stride);
+		int stride = bitmapData.Stride;
+
+		AdjustBrightness(pixels, stride, width, height, factor, DirectionUp, DirectionDown, DirectionLeft, DirectionRight);
+	
+		// Unlock the bitmap after processing
+		bitmap->UnlockBits(&bitmapData);
+	}
+}
+
 LRESULT CTSScviko1Dlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 {
 	LPDRAWITEMSTRUCT st = (LPDRAWITEMSTRUCT)wParam;
 	Gdiplus::Graphics gr(st->hDC);
 
 	if (m_imageList.empty())
-		return -1;
+		return S_OK;
 
 	int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 
 	if (selectedIndex == -1 || selectedIndex >= m_imageList.size())
 		return S_OK;
 
-	Gdiplus::Image* pImage = m_imageList[selectedIndex].bitmap;
+	Img& currentImg = m_imageList[selectedIndex]; 
 
-	if (pImage && pImage->GetLastStatus() == Gdiplus::Ok)
+	if (currentImg.bitmap && currentImg.bitmap->GetLastStatus() == Gdiplus::Ok)
 	{
+		
 		CRect rect;
 		m_staticImage.GetClientRect(&rect);
 
-		float imageAspectRatio = static_cast<float>(pImage->GetWidth()) / static_cast<float>(pImage->GetHeight());
+		float imageAspectRatio = static_cast<float>(currentImg.bitmap->GetWidth()) / static_cast<float>(currentImg.bitmap->GetHeight());
 		float controlAspectRatio = static_cast<float>(rect.Width()) / static_cast<float>(rect.Height());
 
 		float scaleFactor;
 		if (imageAspectRatio > controlAspectRatio)
 		{
-			scaleFactor = static_cast<float>(rect.Width()) / pImage->GetWidth();
+			scaleFactor = static_cast<float>(rect.Width()) / currentImg.bitmap->GetWidth();
 		}
 		else
 		{
-			scaleFactor = static_cast<float>(rect.Height()) / pImage->GetHeight();
+			scaleFactor = static_cast<float>(rect.Height()) / currentImg.bitmap->GetHeight();
 		}
 
-		int scaledWidth = static_cast<int>(pImage->GetWidth() * scaleFactor);
-		int scaledHeight = static_cast<int>(pImage->GetHeight() * scaleFactor);
+		int scaledWidth = static_cast<int>(currentImg.bitmap->GetWidth() * scaleFactor);
+		int scaledHeight = static_cast<int>(currentImg.bitmap->GetHeight() * scaleFactor);
 
 		int xPos = (rect.Width() - scaledWidth) / 2;   // Center horizontally
 		int yPos = (rect.Height() - scaledHeight) / 2; // Center vertically
 
 		gr.Clear(Gdiplus::Color::White);
 
-		gr.DrawImage(pImage, xPos, yPos, scaledWidth, scaledHeight);
+		gr.DrawImage(currentImg.bitmap, xPos, yPos, scaledWidth, scaledHeight);
 	}
 
 	return S_OK;
@@ -579,6 +657,12 @@ LRESULT CTSScviko1Dlg::HistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 	m_staticImage.Invalidate(FALSE); //display image 
 	m_staticHistogram.Invalidate(FALSE); //display histogram channels
 	
+	return S_OK;
+}
+
+LRESULT CTSScviko1Dlg::AdjustImageBrightnessDone(WPARAM wParam, LPARAM lParam)
+{
+	m_staticImage.Invalidate(FALSE); //display image 
 	return S_OK;
 }
 
@@ -751,3 +835,4 @@ void CTSScviko1Dlg::OnImageDarker()
 		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_UNCHECKED | MF_BYCOMMAND);
 	}
 }
+
