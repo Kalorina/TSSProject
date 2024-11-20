@@ -13,7 +13,7 @@ struct Img
 {
 	CString filename;
 	CString filepath;
-	Gdiplus::Image* bitmap;
+	Gdiplus::Image* bitmap; //
 	Gdiplus::Image* bitmap_Original;
 
 	std::vector<int> redChannel;
