@@ -111,6 +111,7 @@ BEGIN_MESSAGE_MAP(CTSScviko1Dlg, CDialogEx)
 	ON_COMMAND(ID_DIRECTION_RIGHT, &CTSScviko1Dlg::OnDirectionRight)
 	ON_COMMAND(ID_IMAGE_BRIGHTER, &CTSScviko1Dlg::OnImageBrighter)
 	ON_COMMAND(ID_IMAGE_DARKER, &CTSScviko1Dlg::OnImageDarker)
+	ON_COMMAND(ID_IMAGE_ORIGINAL, &CTSScviko1Dlg::OnImageOriginal)
 END_MESSAGE_MAP()
 
 
@@ -233,9 +234,6 @@ void CTSScviko1Dlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
 		StartAdjustingImageBrightness();
 	}
-	else {
-		ReturntoOriginalBitmap();
-	}
 
 	m_staticImage.Invalidate(FALSE); 
 	m_staticHistogram.Invalidate(FALSE); 
@@ -250,10 +248,23 @@ void CTSScviko1Dlg::StartAdjustingImageBrightness()
 	if (selectedIndex != -1 && selectedIndex < m_imageList.size())
 	{
 		Img& currentImg = m_imageList[selectedIndex];
-		if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
-			float factor = m_Brighter ? 1.5f : 0.5f; // Adjust factor as needed by +/-10%
-			AdjustImageBrightness(currentImg, factor, m_DirectionUp, m_DirectionDown, m_DirectionLeft, m_DirectionRight);
-			PostMessage(WM_ADJUSTIMAGEBRITHNESS);
+		if (!currentImg.isEffectApplied)
+		{
+			if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
+				float factor = m_Brighter ? 1.5f : 0.5f; // Adjust factor as needed by +/-10%
+				AdjustImageBrightness(currentImg, factor, m_DirectionUp, m_DirectionDown, m_DirectionLeft, m_DirectionRight);
+				currentImg.isEffectApplied = true;
+				PostMessage(WM_ADJUSTIMAGEBRITHNESS);
+			}
+		}
+		else {
+			if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
+				ReturntoOriginalBitmap();
+				float factor = m_Brighter ? 1.5f : 0.5f; // Adjust factor as needed by +/-10%
+				AdjustImageBrightness(currentImg, factor, m_DirectionUp, m_DirectionDown, m_DirectionLeft, m_DirectionRight);
+				//currentImg.isEffectApplied = true;
+				PostMessage(WM_ADJUSTIMAGEBRITHNESS);
+			}
 		}
 	}
 }
@@ -321,18 +332,19 @@ void CTSScviko1Dlg::ReturntoOriginalBitmap()
 		Img& currentImg = m_imageList[selectedIndex];
 
 		// Clean up the current bitmap if it exists and is different from the original
-		if (currentImg.bitmap && currentImg.bitmap != currentImg.bitmap_Original)
+		if (currentImg.bitmap_effect && currentImg.bitmap_effect != currentImg.bitmap)
 		{
-			delete currentImg.bitmap;
-			currentImg.bitmap = nullptr;
+			delete currentImg.bitmap_effect;
+			currentImg.bitmap_effect = nullptr;
 		}
 
 		// Create a new copy of the original bitmap
-		if (currentImg.bitmap_Original)
+		if (currentImg.bitmap)
 		{
-			currentImg.bitmap = currentImg.bitmap_Original->Clone();
+			currentImg.bitmap_effect = currentImg.bitmap->Clone();
 		}
 	}
+	m_staticImage.Invalidate(FALSE);
 }
 
 void CTSScviko1Dlg::DisplayListControl()
@@ -395,7 +407,7 @@ void CTSScviko1Dlg::OnFileOpen32771()
 				image.filename = filename;
 				image.filepath = filepath; 
 				image.bitmap = Gdiplus::Image::FromFile(filepath);
-				image.bitmap_Original = Gdiplus::Image::FromFile(filepath);
+				image.bitmap_effect = Gdiplus::Image::FromFile(filepath);
 				m_imageList.push_back(image);
 				
 				DisplayListControl();
@@ -505,9 +517,9 @@ void AdjustImageBrightness(Img& img, float factor, bool DirectionUp, bool Direct
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 	// Simulate delay
 
-	if (!img.bitmap) return;
+	if (!img.bitmap_effect) return;
 
-	Gdiplus::Bitmap* bitmap = static_cast<Gdiplus::Bitmap*>(img.bitmap);
+	Gdiplus::Bitmap* bitmap = static_cast<Gdiplus::Bitmap*>(img.bitmap_effect);
 
 	int width = bitmap->GetWidth();
 	int height = bitmap->GetHeight();
@@ -545,34 +557,40 @@ LRESULT CTSScviko1Dlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 
 	Img& currentImg = m_imageList[selectedIndex]; 
 
-	if (currentImg.bitmap && currentImg.bitmap->GetLastStatus() == Gdiplus::Ok)
+	Gdiplus::Image* currentBitmap = currentImg.bitmap;
+
+	if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
+		currentBitmap = currentImg.bitmap_effect;
+	}
+
+	if (currentBitmap && currentBitmap->GetLastStatus() == Gdiplus::Ok)
 	{
 		
 		CRect rect;
 		m_staticImage.GetClientRect(&rect);
 
-		float imageAspectRatio = static_cast<float>(currentImg.bitmap->GetWidth()) / static_cast<float>(currentImg.bitmap->GetHeight());
+		float imageAspectRatio = static_cast<float>(currentBitmap->GetWidth()) / static_cast<float>(currentBitmap->GetHeight());
 		float controlAspectRatio = static_cast<float>(rect.Width()) / static_cast<float>(rect.Height());
 
 		float scaleFactor;
 		if (imageAspectRatio > controlAspectRatio)
 		{
-			scaleFactor = static_cast<float>(rect.Width()) / currentImg.bitmap->GetWidth();
+			scaleFactor = static_cast<float>(rect.Width()) / currentBitmap->GetWidth();
 		}
 		else
 		{
-			scaleFactor = static_cast<float>(rect.Height()) / currentImg.bitmap->GetHeight();
+			scaleFactor = static_cast<float>(rect.Height()) / currentBitmap->GetHeight();
 		}
 
-		int scaledWidth = static_cast<int>(currentImg.bitmap->GetWidth() * scaleFactor);
-		int scaledHeight = static_cast<int>(currentImg.bitmap->GetHeight() * scaleFactor);
+		int scaledWidth = static_cast<int>(currentBitmap->GetWidth() * scaleFactor);
+		int scaledHeight = static_cast<int>(currentBitmap->GetHeight() * scaleFactor);
 
 		int xPos = (rect.Width() - scaledWidth) / 2;   // Center horizontally
 		int yPos = (rect.Height() - scaledHeight) / 2; // Center vertically
 
 		gr.Clear(Gdiplus::Color::White);
 
-		gr.DrawImage(currentImg.bitmap, xPos, yPos, scaledWidth, scaledHeight);
+		gr.DrawImage(currentBitmap, xPos, yPos, scaledWidth, scaledHeight);
 	}
 
 	return S_OK;
@@ -727,7 +745,6 @@ void CTSScviko1Dlg::OnExitappExit()
 	// if you're using GDI+, make sure to shut it down
 	GdiplusShutdown(gdiplusToken);
 
-
 	CDialogEx::OnOK();  // or CDialogEx::OnCancel();
 }
 
@@ -836,3 +853,8 @@ void CTSScviko1Dlg::OnImageDarker()
 	}
 }
 
+void CTSScviko1Dlg::OnImageOriginal()
+{
+	// TODO: Add your command handler code here
+	ReturntoOriginalBitmap();
+}

@@ -13,8 +13,8 @@ struct Img
 {
 	CString filename;
 	CString filepath;
-	Gdiplus::Image* bitmap; //
-	Gdiplus::Image* bitmap_Original;
+	Gdiplus::Image* bitmap; 
+	Gdiplus::Image* bitmap_effect;
 
 	std::vector<int> redChannel;
 	std::vector<int> greenChannel;
@@ -22,6 +22,11 @@ struct Img
 
 	bool isHistCalculated = false;
 	bool isHistCalculating = false;
+
+	bool isEffectApplied = false; // so that effect does not repeat
+	// for thread
+	bool isEffectCalculationg = false; // adjusting brightness
+	bool isEffectCalculated = false;
 };
 
 // enum -> enumarate
@@ -135,6 +140,7 @@ public:
 	afx_msg void OnDirectionRight();
 	afx_msg void OnImageBrighter();
 	afx_msg void OnImageDarker();
+	afx_msg void OnImageOriginal();
 };
 
 void CalculateHistogram(Img& img);
