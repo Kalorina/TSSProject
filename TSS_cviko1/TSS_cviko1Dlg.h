@@ -8,28 +8,83 @@ using namespace std;
 
 #pragma once
 
-// Define the Img structure
+enum class BrightnessEffect {
+	None,
+	Brighter,
+	Darker
+};
+
+enum class Direction {
+	None,
+	Up,
+	Down,
+	Left,
+	Right
+};
+
+struct BitmapEffect
+{
+	Gdiplus::Image* bitmap_effect;
+	BrightnessEffect brightness = BrightnessEffect::None;	// Brighter/Darker effect
+	Direction direction = Direction::None;	// Direction of the effect
+
+	// Explicit constructor
+	BitmapEffect()
+		: bitmap_effect(nullptr),
+		brightness(BrightnessEffect::None),
+		direction(Direction::None) {}
+
+	// Check if the combination of brightness and direction matches this effect
+	bool IsCombination(BrightnessEffect targetBrightness, Direction targetDirection) const
+	{
+		return (brightness == targetBrightness && direction == targetDirection);
+	}
+
+	// Mark the effect as applied by caching the resulting image
+	void SetEffectApplied(Gdiplus::Image* cachedImage) 
+	{
+		if (bitmap_effect != nullptr)
+		{
+			delete bitmap_effect; // Free existing memory
+		}
+		bitmap_effect = cachedImage; // Cache the new image
+	}
+};
+
 struct Img
 {
 	CString filename;
 	CString filepath;
 	Gdiplus::Image* bitmap; 
-	Gdiplus::Image* bitmap_effect;
+
+	// caching 8 possible combinations (brighter/darker + one direction)
+	std::vector<BitmapEffect> v_bitmap_effects;
 
 	std::vector<int> redChannel;
 	std::vector<int> greenChannel;
 	std::vector<int> blueChannel;
 
+	// Histrogram 
 	bool isHistCalculated = false;
 	bool isHistCalculating = false;
 
-	bool isEffectApplied = false; // so that effect does not repeat
 	// for thread
-	bool isEffectCalculationg = false; // adjusting brightness
+	// adjusting brightness
+	bool isEffectCalculationg = false; 
 	bool isEffectCalculated = false;
+
+	// Find an effect by its combination
+	BitmapEffect* FindEffect(BrightnessEffect brightness, Direction direction)
+	{
+		for (BitmapEffect& effect : v_bitmap_effects)
+		{
+			if (effect.IsCombination(brightness, direction))
+				return &effect;
+		}
+		return nullptr; // Not found
+	}
 };
 
-// enum -> enumarate
 enum
 {
 	WM_DRAW_IMAGE = WM_USER + 1,
@@ -123,6 +178,7 @@ public:
 
 	void DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vector<int>& channel, Gdiplus::Pen& pen, float xScale, int maxHeight, int height);
 	void ReturntoOriginalBitmap();
+	void InitializeEffects(Img& img);
 
 	//Messages
 	afx_msg LRESULT OnDrawImage(WPARAM wParam, LPARAM lParam);
@@ -144,4 +200,4 @@ public:
 };
 
 void CalculateHistogram(Img& img);
-void AdjustImageBrightness(Img& img, float factor, bool DirectionUp, bool DirectionDown, bool DirectionLeft, bool DirectionRight);
+void AdjustImageBrightness(BitmapEffect* effect);

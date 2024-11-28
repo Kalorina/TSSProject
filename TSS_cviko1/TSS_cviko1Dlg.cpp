@@ -248,24 +248,24 @@ void CTSScviko1Dlg::StartAdjustingImageBrightness()
 	if (selectedIndex != -1 && selectedIndex < m_imageList.size())
 	{
 		Img& currentImg = m_imageList[selectedIndex];
-		if (!currentImg.isEffectApplied)
-		{
-			if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
-				float factor = m_Brighter ? 1.5f : 0.5f; // Adjust factor as needed by +/-10%
-				AdjustImageBrightness(currentImg, factor, m_DirectionUp, m_DirectionDown, m_DirectionLeft, m_DirectionRight);
-				currentImg.isEffectApplied = true;
-				PostMessage(WM_ADJUSTIMAGEBRITHNESS);
-			}
-		}
-		else {
-			if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
-				ReturntoOriginalBitmap();
-				float factor = m_Brighter ? 1.5f : 0.5f; // Adjust factor as needed by +/-10%
-				AdjustImageBrightness(currentImg, factor, m_DirectionUp, m_DirectionDown, m_DirectionLeft, m_DirectionRight);
-				//currentImg.isEffectApplied = true;
-				PostMessage(WM_ADJUSTIMAGEBRITHNESS);
-			}
-		}
+
+		BrightnessEffect brightness = m_Brighter ? BrightnessEffect::Brighter : BrightnessEffect::Darker;
+
+		Direction direction = Direction::None;
+		if (m_DirectionUp)
+			direction = Direction::Up;
+		else if (m_DirectionDown)
+			direction = Direction::Down;
+		else if (m_DirectionLeft)
+			direction = Direction::Left;
+		else if (m_DirectionRight)
+			direction = Direction::Right;
+
+		// Find the corresponding effect in the cache
+		BitmapEffect* effect = currentImg.FindEffect(brightness, direction);
+
+		AdjustImageBrightness(effect); 
+		PostMessage(WM_ADJUSTIMAGEBRITHNESS);
 	}
 }
 
@@ -331,7 +331,7 @@ void CTSScviko1Dlg::ReturntoOriginalBitmap()
 	{
 		Img& currentImg = m_imageList[selectedIndex];
 
-		// Clean up the current bitmap if it exists and is different from the original
+		/*// Clean up the current bitmap if it exists and is different from the original
 		if (currentImg.bitmap_effect && currentImg.bitmap_effect != currentImg.bitmap)
 		{
 			delete currentImg.bitmap_effect;
@@ -342,9 +342,30 @@ void CTSScviko1Dlg::ReturntoOriginalBitmap()
 		if (currentImg.bitmap)
 		{
 			currentImg.bitmap_effect = currentImg.bitmap->Clone();
-		}
+		}*/
 	}
 	m_staticImage.Invalidate(FALSE);
+}
+
+void CTSScviko1Dlg::InitializeEffects(Img& img)
+{
+	img.v_bitmap_effects.clear();
+
+	for (int i = 0; i < 8; ++i)
+	{
+		BitmapEffect effect;
+		effect.brightness = (i < 4) ? BrightnessEffect::Brighter : BrightnessEffect::Darker;
+
+		switch (i % 4)
+		{
+		case 0: effect.direction = Direction::Up; break;
+		case 1: effect.direction = Direction::Down; break;
+		case 2: effect.direction = Direction::Left; break;
+		case 3: effect.direction = Direction::Right; break;
+		}
+		effect.bitmap_effect = img.bitmap->Clone();
+		img.v_bitmap_effects.push_back(effect);
+	}
 }
 
 void CTSScviko1Dlg::DisplayListControl()
@@ -407,7 +428,7 @@ void CTSScviko1Dlg::OnFileOpen32771()
 				image.filename = filename;
 				image.filepath = filepath; 
 				image.bitmap = Gdiplus::Image::FromFile(filepath);
-				image.bitmap_effect = Gdiplus::Image::FromFile(filepath);
+				InitializeEffects(image); // all 8 combinations
 				m_imageList.push_back(image);
 				
 				DisplayListControl();
@@ -512,14 +533,14 @@ void CTSScviko1Dlg::DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vecto
 	delete[] Points;
 }
 
-void AdjustImageBrightness(Img& img, float factor, bool DirectionUp, bool DirectionDown, bool DirectionLeft, bool DirectionRight) {
+void AdjustImageBrightness(BitmapEffect* effect) {
 	
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 	// Simulate delay
 
-	if (!img.bitmap_effect) return;
+	if (!effect->bitmap_effect) return;
 
-	Gdiplus::Bitmap* bitmap = static_cast<Gdiplus::Bitmap*>(img.bitmap_effect);
+	Gdiplus::Bitmap* bitmap = static_cast<Gdiplus::Bitmap*>(effect->bitmap_effect);
 
 	int width = bitmap->GetWidth();
 	int height = bitmap->GetHeight();
@@ -532,10 +553,15 @@ void AdjustImageBrightness(Img& img, float factor, bool DirectionUp, bool Direct
 	if (bitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Ok)
 	{
 		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
-		//std::vector<BYTE> pixelData(pixels, pixels + height * bitmapData.Stride);
 		int stride = bitmapData.Stride;
-
-		AdjustBrightness(pixels, stride, width, height, factor, DirectionUp, DirectionDown, DirectionLeft, DirectionRight);
+		float factor = effect->brightness == BrightnessEffect::Brighter ? 1.5f : 0.5f;
+		
+		AdjustBrightness(pixels, stride, width, height,
+			factor,
+			effect->direction == Direction::Up, 
+			effect->direction == Direction::Down,
+			effect->direction == Direction::Left,
+			effect->direction == Direction::Right);
 	
 		// Unlock the bitmap after processing
 		bitmap->UnlockBits(&bitmapData);
@@ -559,8 +585,29 @@ LRESULT CTSScviko1Dlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 
 	Gdiplus::Image* currentBitmap = currentImg.bitmap;
 
-	if (m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) {
-		currentBitmap = currentImg.bitmap_effect;
+	// Determine the selected brightness and direction
+	BrightnessEffect brightness = BrightnessEffect::None;
+	Direction direction = Direction::None;
+
+	if (m_Brighter)
+		brightness = BrightnessEffect::Brighter;
+	else if (m_Darker)
+		brightness = BrightnessEffect::Darker;
+
+	if (m_DirectionUp)
+		direction = Direction::Up;
+	else if (m_DirectionDown)
+		direction = Direction::Down;
+	else if (m_DirectionLeft)
+		direction = Direction::Left;
+	else if (m_DirectionRight)
+		direction = Direction::Right;
+
+	// If any effect is selected, use the cached version
+	if (brightness != BrightnessEffect::None || direction != Direction::None){
+
+		BitmapEffect* effect = currentImg.FindEffect(brightness, direction);
+		currentBitmap = effect->bitmap_effect;
 	}
 
 	if (currentBitmap && currentBitmap->GetLastStatus() == Gdiplus::Ok)
@@ -751,57 +798,64 @@ void CTSScviko1Dlg::OnExitappExit()
 void CTSScviko1Dlg::OnDirectionUp()
 {
 	m_DirectionUp = !m_DirectionUp;
+	if (m_DirectionUp) {
+		m_DirectionDown = FALSE;
+		m_DirectionLeft = FALSE;
+		m_DirectionRight = FALSE;
+	}
 
-	if (m_DirectionUp)
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_UP, MF_CHECKED | MF_BYCOMMAND);
-	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_UP, MF_UNCHECKED | MF_BYCOMMAND);
-	}
+	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_LEFT, (m_DirectionLeft ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, (m_DirectionRight ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 }
 
 void CTSScviko1Dlg::OnDirectionDown()
 {
 	m_DirectionDown = !m_DirectionDown;
 
-	if (m_DirectionDown)
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_DOWN, MF_CHECKED | MF_BYCOMMAND);
+	if (m_DirectionDown) {
+		m_DirectionUp = FALSE;
+		m_DirectionLeft = FALSE;
+		m_DirectionRight = FALSE;
 	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_DOWN, MF_UNCHECKED | MF_BYCOMMAND);
-	}
+
+	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_LEFT, (m_DirectionLeft ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, (m_DirectionRight ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 }
 
 void CTSScviko1Dlg::OnDirectionLeft()
 {
 	m_DirectionLeft = !m_DirectionLeft;
 
-	if (m_DirectionLeft)
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_LEFT, MF_CHECKED | MF_BYCOMMAND);
+	if (m_DirectionLeft) {
+		m_DirectionUp = FALSE;
+		m_DirectionDown = FALSE;
+		m_DirectionRight = FALSE;
 	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_LEFT, MF_UNCHECKED | MF_BYCOMMAND);
-	}
+
+	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_LEFT, (m_DirectionLeft ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, (m_DirectionRight ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 }
 
 void CTSScviko1Dlg::OnDirectionRight()
 {
 	m_DirectionRight = !m_DirectionRight;
 
-	if (m_DirectionRight)
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, MF_CHECKED | MF_BYCOMMAND);
+	if (m_DirectionRight) {
+		m_DirectionUp = FALSE;
+		m_DirectionDown = FALSE;
+		m_DirectionLeft = FALSE;
 	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, MF_UNCHECKED | MF_BYCOMMAND);
-	}
+
+	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_LEFT, (m_DirectionLeft ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, (m_DirectionRight ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 }
 
 void CTSScviko1Dlg::OnImageBrighter()
@@ -810,23 +864,8 @@ void CTSScviko1Dlg::OnImageBrighter()
 	if(m_Brighter) 
 		m_Darker = FALSE;
 
-	if (m_Brighter)
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_CHECKED | MF_BYCOMMAND);
-	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_UNCHECKED | MF_BYCOMMAND);
-	}
-
-	if (m_Darker)
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_CHECKED | MF_BYCOMMAND);
-	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_UNCHECKED | MF_BYCOMMAND);
-	}
+	m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, (m_Brighter ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_IMAGE_DARKER, (m_Darker ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 }
 
 void CTSScviko1Dlg::OnImageDarker()
@@ -835,26 +874,28 @@ void CTSScviko1Dlg::OnImageDarker()
 	if (m_Darker)
 		m_Brighter = FALSE;
 
-	if (m_Darker)
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_CHECKED | MF_BYCOMMAND);
-	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_UNCHECKED | MF_BYCOMMAND);
-	}
-	if (m_Brighter)
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_CHECKED | MF_BYCOMMAND);
-	}
-	else
-	{
-		m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_UNCHECKED | MF_BYCOMMAND);
-	}
+	m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, (m_Brighter ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_IMAGE_DARKER, (m_Darker ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 }
 
 void CTSScviko1Dlg::OnImageOriginal()
 {
 	// TODO: Add your command handler code here
-	ReturntoOriginalBitmap();
+	//ReturntoOriginalBitmap(); // -> update
+
+	m_Brighter = FALSE;
+	m_Darker = FALSE;
+	m_DirectionUp = FALSE;
+	m_DirectionDown = FALSE;
+	m_DirectionLeft = FALSE;
+	m_DirectionRight = FALSE;
+
+	m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, MF_UNCHECKED | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_IMAGE_DARKER, MF_UNCHECKED | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_UP, MF_UNCHECKED | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, MF_UNCHECKED | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_LEFT, MF_UNCHECKED | MF_BYCOMMAND);
+	m_menu->CheckMenuItem(ID_DIRECTION_RIGHT, MF_UNCHECKED | MF_BYCOMMAND);
+
+	m_staticImage.Invalidate(FALSE);
 }
