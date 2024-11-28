@@ -261,12 +261,28 @@ void CTSScviko1Dlg::StartAdjustingImageBrightness()
 		else if (m_DirectionRight)
 			direction = Direction::Right;
 
+		m_imageList[selectedIndex].isEffectCalculationg = true;
+
+		if (!m_imageList[selectedIndex].FindEffect(brightness, direction)->isEffectApplied) 
+		{
+			std::thread thread_histogram([this, selectedIndex, brightness, direction]() {
+
+				auto selected = m_imageList[selectedIndex];
+				AdjustImageBrightness(m_imageList[selectedIndex].FindEffect(brightness, direction));
+				selected.isEffectCalculated = true;
+				PostMessage(WM_ADJUSTIMAGEBRITHNESS);
+				});
+
+			thread_histogram.detach();
+		}
+		
+		/*
 		// Find the corresponding effect in the cache
-		BitmapEffect* effect = currentImg.FindEffect(brightness, direction);
+		BitmapEffect* effect = m_imageList[selectedIndex].FindEffect(brightness, direction);
 		if (!effect->isEffectApplied) {
 			AdjustImageBrightness(effect);
 		}
-		PostMessage(WM_ADJUSTIMAGEBRITHNESS);
+		PostMessage(WM_ADJUSTIMAGEBRITHNESS);*/
 	}
 }
 
@@ -322,30 +338,6 @@ void CalculateHistogram(Img& img)
 		// Unlock the bitmap after processing
 		bitmap->UnlockBits(&bitmapData);
 	}
-}
-
-void CTSScviko1Dlg::ReturntoOriginalBitmap()
-{
-	int selectedIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-
-	if (selectedIndex != -1 && selectedIndex < m_imageList.size())
-	{
-		Img& currentImg = m_imageList[selectedIndex];
-
-		/*// Clean up the current bitmap if it exists and is different from the original
-		if (currentImg.bitmap_effect && currentImg.bitmap_effect != currentImg.bitmap)
-		{
-			delete currentImg.bitmap_effect;
-			currentImg.bitmap_effect = nullptr;
-		}
-
-		// Create a new copy of the original bitmap
-		if (currentImg.bitmap)
-		{
-			currentImg.bitmap_effect = currentImg.bitmap->Clone();
-		}*/
-	}
-	m_staticImage.Invalidate(FALSE);
 }
 
 void CTSScviko1Dlg::InitializeEffects(Img& img)
@@ -536,7 +528,7 @@ void CTSScviko1Dlg::DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vecto
 
 void AdjustImageBrightness(BitmapEffect* effect) {
 	
-	std::this_thread::sleep_for(std::chrono::seconds(1));
+	std::this_thread::sleep_for(std::chrono::seconds(10));
 	// Simulate delay
 
 	if (!effect->bitmap_effect) return;
@@ -546,7 +538,7 @@ void AdjustImageBrightness(BitmapEffect* effect) {
 	int width = bitmap->GetWidth();
 	int height = bitmap->GetHeight();
 
-	// Lock the bitmap for direct memory access
+	
 	Gdiplus::Rect rect(0, 0, width, height);
 	BitmapData bitmapData;
 
@@ -564,7 +556,6 @@ void AdjustImageBrightness(BitmapEffect* effect) {
 			effect->direction == Direction::Left,
 			effect->direction == Direction::Right);
 	
-		// Unlock the bitmap after processing
 		bitmap->UnlockBits(&bitmapData);
 	}
 	effect->isEffectApplied = true;
@@ -721,7 +712,7 @@ LRESULT CTSScviko1Dlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 LRESULT CTSScviko1Dlg::HistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 {
-	m_staticImage.Invalidate(FALSE); //display image 
+	//m_staticImage.Invalidate(FALSE); //display image 
 	m_staticHistogram.Invalidate(FALSE); //display histogram channels
 	
 	return S_OK;
@@ -883,7 +874,6 @@ void CTSScviko1Dlg::OnImageDarker()
 void CTSScviko1Dlg::OnImageOriginal()
 {
 	// TODO: Add your command handler code here
-	//ReturntoOriginalBitmap(); // -> update
 
 	m_Brighter = FALSE;
 	m_Darker = FALSE;

@@ -57,12 +57,10 @@ struct Img
 	bool isHistCalculated = false;
 	bool isHistCalculating = false;
 
-	// for thread
 	// adjusting brightness
 	bool isEffectCalculationg = false;
 	bool isEffectCalculated = false;
 
-	// Find an effect by its combination
 	BitmapEffect* FindEffect(BrightnessEffect brightness, Direction direction)
 	{
 		for (BitmapEffect& effect : v_bitmap_effects)
@@ -72,6 +70,7 @@ struct Img
 		}
 		return nullptr; // Not found
 	}
+
 };
 
 enum
@@ -166,7 +165,6 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 
 	void DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vector<int>& channel, Gdiplus::Pen& pen, float xScale, int maxHeight, int height);
-	void ReturntoOriginalBitmap();
 	void InitializeEffects(Img& img);
 
 	//Messages
