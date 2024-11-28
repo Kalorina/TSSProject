@@ -263,8 +263,9 @@ void CTSScviko1Dlg::StartAdjustingImageBrightness()
 
 		// Find the corresponding effect in the cache
 		BitmapEffect* effect = currentImg.FindEffect(brightness, direction);
-
-		AdjustImageBrightness(effect); 
+		if (!effect->isEffectApplied) {
+			AdjustImageBrightness(effect);
+		}
 		PostMessage(WM_ADJUSTIMAGEBRITHNESS);
 	}
 }
@@ -566,6 +567,7 @@ void AdjustImageBrightness(BitmapEffect* effect) {
 		// Unlock the bitmap after processing
 		bitmap->UnlockBits(&bitmapData);
 	}
+	effect->isEffectApplied = true;
 }
 
 LRESULT CTSScviko1Dlg::OnDrawImage(WPARAM wParam, LPARAM lParam)

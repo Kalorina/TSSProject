@@ -27,27 +27,16 @@ struct BitmapEffect
 	Gdiplus::Image* bitmap_effect;
 	BrightnessEffect brightness = BrightnessEffect::None;	// Brighter/Darker effect
 	Direction direction = Direction::None;	// Direction of the effect
+	bool isEffectApplied = false;
 
-	// Explicit constructor
 	BitmapEffect()
 		: bitmap_effect(nullptr),
 		brightness(BrightnessEffect::None),
 		direction(Direction::None) {}
 
-	// Check if the combination of brightness and direction matches this effect
 	bool IsCombination(BrightnessEffect targetBrightness, Direction targetDirection) const
 	{
 		return (brightness == targetBrightness && direction == targetDirection);
-	}
-
-	// Mark the effect as applied by caching the resulting image
-	void SetEffectApplied(Gdiplus::Image* cachedImage) 
-	{
-		if (bitmap_effect != nullptr)
-		{
-			delete bitmap_effect; // Free existing memory
-		}
-		bitmap_effect = cachedImage; // Cache the new image
 	}
 };
 
@@ -55,7 +44,7 @@ struct Img
 {
 	CString filename;
 	CString filepath;
-	Gdiplus::Image* bitmap; 
+	Gdiplus::Image* bitmap;
 
 	// caching 8 possible combinations (brighter/darker + one direction)
 	std::vector<BitmapEffect> v_bitmap_effects;
@@ -70,7 +59,7 @@ struct Img
 
 	// for thread
 	// adjusting brightness
-	bool isEffectCalculationg = false; 
+	bool isEffectCalculationg = false;
 	bool isEffectCalculated = false;
 
 	// Find an effect by its combination
