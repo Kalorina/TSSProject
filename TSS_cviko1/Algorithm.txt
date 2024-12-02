@@ -1,0 +1,43 @@
+Úprava jasu v spracovaní obrázkov (S použitím vlákien)
+
+Táto funkcia umožňuje používateľom upraviť jas obrázka - variácie jasu (jasnejší alebo tmavší) a
+smeru (hore, dole, doľava, doprava). Spracovanie obrázkov prebieha v pozadí na samostatnom vlákne. 
+Keď je efekt použitý na obrázok, uloží sa do cache, aby sa zabránilo opakovaniu rovnakého efektu. 
+Cache uchováva kombináciu efektu (jas a smer) a výsledný upravený obrázok. Effect je navrhnutý na 
+spracovanie až 8 kombinácií úpravy jasu a smeru:
+
+Jasnejší + Hore
+Jasnejší + Dole
+Jasnejší + Doľava
+Jasnejší + Doprava
+Tmavší + Hore
+Tmavší + Dole
+Tmavší + Doľava
+Tmavší + Doprava
+
+Parametre z GUI:
+
+Faktor jasu (factor): 
+Nastavuje, o koľko percent sa má jas zmeniť. Aktuálne je to nastvené na 30%.
+ - Hodnota vyššia ako 1,0 zosvetlí obrázok (jasnejší).
+ - Hodnota medzi 0 a 1,0 stmaví obrázok (tmavší).
+
+Smerové parametre (DirectionUp, DirectionDown, DirectionLeft, DirectionRight): 
+Určujú oblasť obrázka, kde sa má jas upraviť:
+ - Hore (Up): Horná polovica obrázka.
+ - Dole (Down): Dolná polovica obrázka.
+ - Doľava (Left): Ľavá polovica obrázka.
+ - Doprava (Right): Pravá polovica obrázka.
+
+Úprava jasnosti pixelov:
+
+Pre každý pixel obrázka sa vypočíta nová hodnota RGB (červená, zelená, modrá):
+Hodnota RGB sa vynásobí faktorom jasu.
+Výsledok sa ohraničí na rozsah 0–255, aby sa predišlo prekročeniu povolených hodnôt. 
+Úprava sa vykoná len pre pixely, ktoré spadajú do vybratej oblasti určené 
+smerovými parametrami.
+
+Referencie:
+
+https://aryamansharda.medium.com/understanding-image-contrast-algorithms-8636723a0f05
+https://lodev.org/cgtutor/color.html#Change_the_Brightness_
