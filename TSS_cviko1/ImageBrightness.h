@@ -8,9 +8,6 @@
 
 void AdjustBrightness(BYTE* pixels, int stride, int width, int height, float factor, bool DirectionUp, bool DirectionDown, bool DirectionLeft, bool DirectionRight)
 {
-	bool adjustWholeImage = (DirectionUp && DirectionDown && DirectionLeft && DirectionRight) ||
-		(!DirectionUp && !DirectionDown && !DirectionLeft && !DirectionRight);
-
 	factor = max(0.0f, factor);
 
 	for (int y = 0; y < height; ++y) {
@@ -18,8 +15,7 @@ void AdjustBrightness(BYTE* pixels, int stride, int width, int height, float fac
 			int index = y * stride + x * 4;
 
 			// Check if the pixel is within the desired adjustment region
-			if (adjustWholeImage ||
-				(DirectionUp && y < height / 2) ||
+			if ((DirectionUp && y < height / 2) ||
 				(DirectionDown && y >= height / 2) ||
 				(DirectionLeft && x < width / 2) ||
 				(DirectionRight && x >= width / 2)) {

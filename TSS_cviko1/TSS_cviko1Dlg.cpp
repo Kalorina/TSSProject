@@ -459,6 +459,22 @@ void CTSScviko1Dlg::OnFileClose32772()
 			{
 				if (m_imageList[i].filename.CompareNoCase(filenameToDelete) == 0)
 				{
+					// Clean up for all effects in the vector
+					for (BitmapEffect& effect : m_imageList[i].v_bitmap_effects)
+					{
+						if (effect.bitmap_effect)
+						{
+							delete effect.bitmap_effect;
+							effect.bitmap_effect = nullptr;
+						}
+					}
+
+					if (m_imageList[i].bitmap)
+					{
+						delete m_imageList[i].bitmap;
+						m_imageList[i].bitmap = nullptr;
+					}
+
 					m_imageList.erase(m_imageList.begin() + i);
 					break; // Exit the loop once the item is found and deleted
 				}
@@ -528,7 +544,7 @@ void CTSScviko1Dlg::DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vecto
 
 void AdjustImageBrightness(BitmapEffect* effect) {
 	
-	std::this_thread::sleep_for(std::chrono::seconds(10));
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 	// Simulate delay
 
 	if (!effect->bitmap_effect) return;
@@ -547,7 +563,7 @@ void AdjustImageBrightness(BitmapEffect* effect) {
 	{
 		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
 		int stride = bitmapData.Stride;
-		float factor = effect->brightness == BrightnessEffect::Brighter ? 1.5f : 0.5f;
+		float factor = effect->brightness == BrightnessEffect::Brighter ? 1.3f : 0.3f;
 		
 		AdjustBrightness(pixels, stride, width, height,
 			factor,
