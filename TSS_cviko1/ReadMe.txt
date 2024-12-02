@@ -17,7 +17,7 @@ Tmavší + Doprava
 Postup
 
 1. Voľba používateľa
-Používateľ vyberie obrázok a zvolí kombináciu jasu a smeru. Jas môže byť buď jasnejší alebo tmavší o 20%
+Používateľ vyberie obrázok a zvolí kombináciu jasu a smeru. Jas môže byť buď jasnejší alebo tmavší o 30%
 Smer je jeden zo štyroch smerov: hore, dole, doľava alebo doprava. 
 V Menu su jednotlivé kombinacie ošetrené, tak aby si používateľ mohol zvoliť iba jednu z 8 kombinacií.
 
