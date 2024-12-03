@@ -318,7 +318,7 @@ void CTSScviko1Dlg::StartHistogramCalculationForSelectedImage()
 
 void CalculateHistogram(Img& img)
 {
-	std::this_thread::sleep_for(std::chrono::seconds(10));
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 	// Simulate delay
 
 	if (!img.bitmap) return;
@@ -549,7 +549,7 @@ void CTSScviko1Dlg::DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vecto
 
 void AdjustImageBrightness(BitmapEffect* effect) {
 	
-	std::this_thread::sleep_for(std::chrono::seconds(10));
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 	// Simulate delay
 
 	if (!effect->bitmap_effect) return;
@@ -887,6 +887,11 @@ void CTSScviko1Dlg::OnImageBrighter()
 
 	m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, (m_Brighter ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_IMAGE_DARKER, (m_Darker ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+
+	if (m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight)
+	{
+		StartAdjustingImageBrightness();
+	}
 }
 
 void CTSScviko1Dlg::OnImageDarker()
@@ -897,6 +902,12 @@ void CTSScviko1Dlg::OnImageDarker()
 
 	m_menu->CheckMenuItem(ID_IMAGE_BRIGHTER, (m_Brighter ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_IMAGE_DARKER, (m_Darker ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
+
+	if (m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight)
+	{
+		StartAdjustingImageBrightness();
+	}
+
 }
 
 void CTSScviko1Dlg::OnImageOriginal()
