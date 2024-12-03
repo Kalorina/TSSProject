@@ -313,7 +313,7 @@ void CTSScviko1Dlg::StartHistogramCalculationForSelectedImage()
 
 void CalculateHistogram(Img& img)
 {
-	std::this_thread::sleep_for(std::chrono::seconds(1));
+	std::this_thread::sleep_for(std::chrono::seconds(10));
 	// Simulate delay
 
 	if (!img.bitmap) return;
@@ -544,7 +544,7 @@ void CTSScviko1Dlg::DrawHistogramChannel(Gdiplus::Graphics* gr, const std::vecto
 
 void AdjustImageBrightness(BitmapEffect* effect) {
 	
-	std::this_thread::sleep_for(std::chrono::seconds(1));
+	std::this_thread::sleep_for(std::chrono::seconds(10));
 	// Simulate delay
 
 	if (!effect->bitmap_effect) return;
@@ -559,7 +559,7 @@ void AdjustImageBrightness(BitmapEffect* effect) {
 	BitmapData bitmapData;
 
 	// 32bppARGB format -> each pixel has 4 bytes (ARGB)
-	if (bitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Ok)
+	if (bitmap->LockBits(&rect, Gdiplus::ImageLockModeWrite, PixelFormat32bppARGB, &bitmapData) == Ok)
 	{
 		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
 		int stride = bitmapData.Stride;
