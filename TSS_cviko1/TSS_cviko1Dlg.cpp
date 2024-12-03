@@ -247,35 +247,40 @@ void CTSScviko1Dlg::StartAdjustingImageBrightness()
 
 	if (selectedIndex != -1 && selectedIndex < m_imageList.size())
 	{
-		Img& currentImg = m_imageList[selectedIndex];
-
-		BrightnessEffect brightness = m_Brighter ? BrightnessEffect::Brighter : BrightnessEffect::Darker;
-
-		Direction direction = Direction::None;
-		if (m_DirectionUp)
-			direction = Direction::Up;
-		else if (m_DirectionDown)
-			direction = Direction::Down;
-		else if (m_DirectionLeft)
-			direction = Direction::Left;
-		else if (m_DirectionRight)
-			direction = Direction::Right;
-
-		m_imageList[selectedIndex].isEffectCalculationg = true;
-
-		if (!m_imageList[selectedIndex].FindEffect(brightness, direction)->isEffectApplied) 
+		if ((m_Brighter || m_Darker || m_DirectionUp || m_DirectionDown || m_DirectionLeft || m_DirectionRight) &&
+			!m_imageList[selectedIndex].isEffectCalculationg &&
+			!m_imageList[selectedIndex].isEffectCalculated)
 		{
-			std::thread thread_histogram([this, selectedIndex, brightness, direction]() {
 
-				auto selected = m_imageList[selectedIndex];
-				AdjustImageBrightness(m_imageList[selectedIndex].FindEffect(brightness, direction));
-				selected.isEffectCalculated = true;
-				PostMessage(WM_ADJUSTIMAGEBRITHNESS);
-				});
+			Img& currentImg = m_imageList[selectedIndex];
 
-			thread_histogram.detach();
+			BrightnessEffect brightness = m_Brighter ? BrightnessEffect::Brighter : BrightnessEffect::Darker;
+
+			Direction direction = Direction::None;
+			if (m_DirectionUp)
+				direction = Direction::Up;
+			else if (m_DirectionDown)
+				direction = Direction::Down;
+			else if (m_DirectionLeft)
+				direction = Direction::Left;
+			else if (m_DirectionRight)
+				direction = Direction::Right;
+
+			m_imageList[selectedIndex].isEffectCalculationg = true;
+
+			if (!m_imageList[selectedIndex].FindEffect(brightness, direction)->isEffectApplied)
+			{
+				std::thread thread_histogram([this, selectedIndex, brightness, direction]() {
+
+					auto selected = m_imageList[selectedIndex];
+					AdjustImageBrightness(m_imageList[selectedIndex].FindEffect(brightness, direction));
+					selected.isEffectCalculated = true;
+					PostMessage(WM_ADJUSTIMAGEBRITHNESS);
+					});
+
+				thread_histogram.detach();
+			}
 		}
-		
 		/*
 		// Find the corresponding effect in the cache
 		BitmapEffect* effect = m_imageList[selectedIndex].FindEffect(brightness, direction);
@@ -812,6 +817,7 @@ void CTSScviko1Dlg::OnDirectionUp()
 		m_DirectionLeft = FALSE;
 		m_DirectionRight = FALSE;
 	}
+	StartAdjustingImageBrightness();
 
 	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
@@ -829,6 +835,8 @@ void CTSScviko1Dlg::OnDirectionDown()
 		m_DirectionRight = FALSE;
 	}
 
+	StartAdjustingImageBrightness();
+
 	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_DIRECTION_LEFT, (m_DirectionLeft ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
@@ -845,6 +853,8 @@ void CTSScviko1Dlg::OnDirectionLeft()
 		m_DirectionRight = FALSE;
 	}
 
+	StartAdjustingImageBrightness();
+
 	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_DIRECTION_LEFT, (m_DirectionLeft ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
@@ -860,6 +870,8 @@ void CTSScviko1Dlg::OnDirectionRight()
 		m_DirectionDown = FALSE;
 		m_DirectionLeft = FALSE;
 	}
+
+	StartAdjustingImageBrightness();
 
 	m_menu->CheckMenuItem(ID_DIRECTION_UP, (m_DirectionUp ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
 	m_menu->CheckMenuItem(ID_DIRECTION_DOWN, (m_DirectionDown ? MF_CHECKED : MF_UNCHECKED) | MF_BYCOMMAND);
